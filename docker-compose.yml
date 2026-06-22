@@ -56,9 +56,12 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       EUREKA_INSTANCE_HOSTNAME: delivery-mascotas
+      PERSONAL_MEDICO_URL: http://personal-medico:8081/api/v1/personal
     depends_on:
       mysql:
         condition: service_healthy
+      personal-medico:
+        condition: service_started
       eureka-server:
         condition: service_started
 
