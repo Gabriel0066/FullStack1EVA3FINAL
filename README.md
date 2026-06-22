@@ -9,9 +9,10 @@ Sistema backend para una clínica veterinaria compuesto por dos microservicios S
 | Microservicio | Puerto | Descripción |
 |---|---|---|
 | **`personal-medico`** | `8081` | Gestión del personal médico (veterinarios, asistentes, recepcionistas, conductores) |
+| **`eureka-server`** | `8761` | Servicio de descubrimiento y registro (Netflix Eureka) |
 | **`delivery-mascotas`** | `8082` | Gestión de traslados (recogida y devolución de mascotas a domicilio) |
 
-**`delivery-mascotas`** consume la API de **`personal-medico`** para validar que un trabajador existe antes de asignarle un traslado.
+**`delivery-mascotas`** consume la API de **`personal-medico`** para validar que un trabajador existe antes de asignarle un traslado. Ambos microservicios se registran en **`eureka-server`** para descubrimiento automático.
 
 ---
 
