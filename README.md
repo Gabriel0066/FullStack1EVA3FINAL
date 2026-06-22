@@ -1,300 +1,397 @@
-# 🐾 FullStack1EVA3 — Sistema de Gestión Veterinaria (Microservicios)
+# Sistema de Gestión Veterinaria - Microservicios Backend
 
-Sistema backend para una clínica veterinaria compuesto por dos microservicios Spring Boot que se comunican entre sí vía **OpenFeign**.
+Arquitectura de microservicios para la gestión de una veterinaria. Proyecto backend desarrollado con **Java 17**, **Spring Boot 3.3.0** y **Spring Cloud 2023.0.1**.
 
----
+## Arquitectura
 
-## 📦 Microservicios
+```
+                            ┌─────────────────┐
+                            │   API Gateway    │  :8080
+                            │  (Spring Cloud   │
+                            │   Gateway)       │
+                            └────────┬─────────┘
+                                     │
+                    ┌────────────────┼────────────────┐
+                    ▼                ▼                 ▼
+            ┌──────────────┐ ┌─────────────┐ ┌──────────────┐
+            │ Eureka Server│ │ Personal    │ │ Delivery     │
+            │ (Discovery)  │ │ Médico      │ │ Mascotas     │
+            │ :8761        │ │ :8081       │ │ :8082        │
+            └──────────────┘ └──────┬──────┘ └──────┬───────┘
+                                    │               │
+                                    ▼               ▼
+                            ┌──────────────┐ ┌──────────────┐
+                            │  MySQL       │ │  MySQL       │
+                            │ veterinaria_ │ │ veterinaria_ │
+                            │ personal     │ │ delivery     │
+                            └──────────────┘ └──────────────┘
+```
 
-| Microservicio | Puerto | Descripción |
+| Servicio | Puerto | Descripción |
 |---|---|---|
-| **`personal-medico`** | `8081` | Gestión del personal médico (veterinarios, asistentes, recepcionistas, conductores) |
-| **`delivery-mascotas`** | `8082` | Gestión de traslados (recogida y devolución de mascotas a domicilio) |
+| **API Gateway** | `8080` | Puerta de entrada única a todos los microservicios |
+| **Eureka Server** | `8761` | Servicio de descubrimiento y registro |
+| **Personal Médico** | `8081` | CRUD del personal de la veterinaria |
+| **Delivery Mascotas** | `8082` | Gestión de traslados de mascotas |
+| **MySQL** | `3307` (host) / `3306` (container) | Base de datos relacional |
 
-**`delivery-mascotas`** consume la API de **`personal-medico`** para validar que un trabajador existe antes de asignarle un traslado.
+## Requisitos Previos
 
----
+- **Docker** y **Docker Compose** (recomendado)
+- O alternativamente: **Java 17+**, **Maven 3.9+**, **MySQL 8.0**
 
-## 🛠️ Tecnologías
+## Levantar el Proyecto con Docker (recomendado)
 
-| Tecnología | Versión |
-|---|---|
-| Java | 17 |
-| Spring Boot | 3.2.0 |
-| Spring Cloud OpenFeign | 2023.0.0 |
-| Spring Data JPA / Hibernate | — |
-| Spring Security (HTTP Basic) | — |
-| Spring HATEOAS | — |
-| Flyway | — |
-| MySQL | 8.x |
-| Lombok | 1.18.30 |
-| springdoc-openapi (Swagger) | 2.1.0 |
-| JUnit 5 + Mockito | — |
-| Maven | 3.11.0+ |
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-FullStack1EVA3/
-├── personal-medico/           # Microservicio 1
-│   ├── pom.xml
-│   └── src/main/java/com/veterinaria/personalmedico/
-│       ├── PersonalMedicoApplication.java
-│       ├── SecurityConfig.java
-│       ├── controller/PersonalController.java
-│       ├── dto/PersonalDTO.java
-│       ├── model/Personal.java
-│       ├── repository/PersonalRepository.java
-│       └── service/PersonalService.java
-├── delivery-mascotas/         # Microservicio 2
-│   ├── pom.xml
-│   └── src/main/java/com/veterinaria/deliverymascotas/
-│       ├── DeliveryMascotasApplication.java
-│       ├── SecurityConfig.java
-│       ├── client/PersonalClient.java         # Feign client
-│       ├── config/FeignClientConfig.java
-│       ├── controller/TrasladoController.java
-│       ├── dto/PersonalDTO.java
-│       ├── model/Traslado.java
-│       ├── repository/TrasladoRepository.java
-│       └── service/TrasladoService.java
-└── README.md
+```bash
+# Desde la raíz del proyecto
+docker compose up --build
 ```
 
----
+Esto construye e inicia todos los servicios en orden:
+1. MySQL (con `init.sql` que crea las bases de datos)
+2. Eureka Server
+3. Personal Médico
+4. Delivery Mascotas
+5. API Gateway
 
-## ⚙️ Prerrequisitos
+Para detener:
+```bash
+docker compose down
+```
 
-- **Java 17 JDK**
-- **Maven** (o usar `mvnw`)
-- **MySQL Server** corriendo en `localhost:3306`
-- **Lombok** configurado en el IDE
+Para eliminar también los volúmenes (borra datos persistentes):
+```bash
+docker compose down -v
+```
 
----
+## Levantar el Proyecto Manualmente (sin Docker)
 
-## 🚀 Ejecución
-
-### 1. Crear las bases de datos
+### 1. Crear las bases de datos en MySQL
 
 ```sql
-CREATE DATABASE veterinaria_personal;
-CREATE DATABASE veterinaria_delivery;
+CREATE DATABASE IF NOT EXISTS veterinaria_personal;
+CREATE DATABASE IF NOT EXISTS veterinaria_delivery;
 ```
 
-### 2. Configurar credenciales de MySQL
+### 2. Iniciar servicios en orden (4 terminales)
 
-En ambos `application.properties` (`personal-medico/src/main/resources/` y `delivery-mascotas/src/main/resources/`), ajustar si es necesario:
-
-```properties
-spring.datasource.username=root
-spring.datasource.password=tu_password
+**Terminal 1 - Eureka Server:**
+```bash
+cd eureka-server
+mvn clean install -DskipTests
+mvn spring-boot:run
 ```
 
-### 3. Iniciar los microservicios (dos terminales)
+**Terminal 2 - API Gateway:**
+```bash
+cd api-gateway
+mvn spring-boot:run
+```
 
-**Terminal 1 — Personal Médico:**
+**Terminal 3 - Personal Médico:**
 ```bash
 cd personal-medico
 mvn spring-boot:run
 ```
 
-**Terminal 2 — Delivery Mascotas:**
+**Terminal 4 - Delivery Mascotas:**
 ```bash
 cd delivery-mascotas
 mvn spring-boot:run
 ```
 
-> ⚠️ **Importante:** `personal-medico` debe estar corriendo antes que `delivery-mascotas`, ya que este último lo consulta al crear traslados.
+### 3. Script automatizado (Windows)
 
-### 4. Construir JARs (alternativa)
-
-```bash
-cd personal-medico && mvn clean package -DskipTests
-cd ../delivery-mascotas && mvn clean package -DskipTests
-java -jar personal-medico/target/personal-medico-microservice-1.0.0.jar
-java -jar delivery-mascotas/target/delivery-mascotas-microservice-1.0.0.jar
+```powershell
+.\start-all.ps1
 ```
 
----
+### 4. Configuración desde VS Code
 
-## 🔐 Seguridad
+Abrir el proyecto en VS Code y usar la configuración compuesta **"Iniciar Todos"** en el panel de Run & Debug.
 
-Ambos microservicios usan **HTTP Basic Auth** con credenciales fijas en memoria:
+## URLs de Acceso
 
-- **Usuario:** `admin`
-- **Contraseña:** `admin123`
+| Servicio | URL |
+|---|---|
+| **API Gateway** (Swagger UI) | http://localhost:8080/ |
+| **Eureka Dashboard** | http://localhost:8761/ |
+| **Personal Médico API** | http://localhost:8081/api/v1/personal |
+| **Personal Médico Swagger** | http://localhost:8081/swagger-ui/index.html |
+| **Delivery Mascotas API** | http://localhost:8082/api/v1/traslados |
+| **Delivery Mascotas Swagger** | http://localhost:8082/swagger-ui/index.html |
+| **Health Check Eureka** | http://localhost:8761/actuator/health |
+| **Health Check Personal** | http://localhost:8081/actuator/health |
+| **Health Check Delivery** | http://localhost:8082/actuator/health |
+| **Health Check Gateway** | http://localhost:8080/actuator/health |
 
-Endpoints públicos (sin autenticación):
-- `/actuator/health`, `/actuator/info`
-- `/swagger-ui/**`, `/v3/api-docs/**`
-- `/api/v1/personal/exists/**` (solo en personal-medico)
+## Autenticación
 
----
+Todos los endpoints (excepto Swagger, health y exists) requieren **HTTP Basic Auth**:
 
-## 📡 API — Personal Médico (`localhost:8081`)
+| Campo | Valor |
+|---|---|
+| Username | `admin` |
+| Password | `admin123` |
 
-Base URL: `http://localhost:8081/api/v1/personal`
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/` | Listar todo el personal |
-| `GET` | `/{id}` | Obtener personal por ID |
-| `POST` | `/` | Crear nuevo personal |
-| `PUT` | `/{id}` | Actualizar personal |
-| `DELETE` | `/{id}` | Eliminar personal |
-| `GET` | `/exists/id/{id}` | Verificar si existe por ID |
-| `GET` | `/exists/rut/{rut}` | Verificar si existe por RUT |
-| `GET` | `/exists/correo/{correo}` | Verificar si existe por correo |
-| `POST` | `/migrate` | Ejecutar migraciones Flyway manualmente |
-
-### Entidad Personal
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| idTrabajador | Long | ID único |
-| rol | String | Rol (veterinario, asistente, etc.) |
-| nombre | String | Nombre |
-| apellido | String | Apellido |
-| rut | String | RUT único (formato XXXXXXX-X) |
-| correo | String | Correo único |
-| telefono | String | Teléfono (8-15 dígitos, + opcional) |
-| direccion | String | Dirección (máx. 200 caracteres) |
-
----
-
-## 📡 API — Delivery Mascotas (`localhost:8082`)
-
-Base URL: `http://localhost:8082/api/v1/traslados`
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/` | Listar todos los traslados |
-| `GET` | `/{id}` | Obtener traslado por ID |
-| `POST` | `/` | Crear traslado |
-| `PUT` | `/{id}/estado/{nuevoEstado}` | Actualizar estado |
-| `DELETE` | `/{id}` | Eliminar traslado |
-| `GET` | `/estadisticas/estado/{estado}` | Contar por estado |
-| `GET` | `/estadisticas/trabajador/{id}/estado/{estado}` | Contar por trabajador + estado |
-| `POST` | `/migrate` | Ejecutar migraciones Flyway manualmente |
-
-### Estados del Traslado
-
-- `PENDIENTE` — Programado, no iniciado
-- `EN_PROGRESO` — En curso
-- `COMPLETADO` — Finalizado (registra auto. hora de entrega)
-- `CANCELADO` — Cancelado (solo si está en PENDIENTE)
-
-### Entidad Traslado
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| idTraslado | Long | ID único |
-| idPaciente | Long | ID del paciente (mascota) |
-| idTrabajador | Long | ID del trabajador asignado |
-| direccionHogar | String | Dirección de recogida/entrega |
-| horaRecogida | Timestamp | Hora programada |
-| horaEntrega | Timestamp | Hora real de entrega |
-| estado | String | Estado del traslado |
-| fechaCreacion | Timestamp | Fecha de creación |
-
-### Reglas de Negocio
-
-1. El trabajador asignado debe existir en `personal-medico` (validación vía Feign)
-2. La hora de recogida no puede ser anterior a la fecha/hora actual
-3. Al marcar `COMPLETADO` se registra automáticamente la hora de entrega
-4. Solo se pueden cancelar traslados en estado `PENDIENTE`
-
----
-
-## 📖 Swagger UI
-
-- Personal Médico: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
-- Delivery Mascotas: [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
-
----
-
-## 🩺 Health Check (Actuator)
-
-- `http://localhost:8081/actuator/health`
-- `http://localhost:8082/actuator/health`
-
----
-
-## 🧪 Tests
-
-Cada microservicio incluye tests unitarios con **Mockito** para la capa de servicio:
-
+Ejemplo con curl:
 ```bash
-cd personal-medico
-mvn test
-
-cd ../delivery-mascotas
-mvn test
+curl -u admin:admin123 http://localhost:8080/api/v1/personal
 ```
 
-- `PersonalServiceTest.java` — 13 casos (CRUD, duplicados, validaciones)
-- `TrasladoServiceTest.java` — 11 casos (CRUD, transiciones de estado, validaciones)
+## API Reference - Personal Médico (`/api/v1/personal`)
 
----
-
-## 📝 Ejemplos de Uso
-
-### Crear personal médico
-
-```bash
-curl -u admin:admin123 -X POST http://localhost:8081/api/v1/personal \
-  -H "Content-Type: application/json" \
-  -d '{
-    "rol": "Veterinario",
-    "nombre": "Carlos",
-    "apellido": "Muñoz",
-    "rut": "12345678-9",
-    "correo": "carlos@vet.cl",
-    "telefono": "+56912345678",
-    "direccion": "Av. Siempre Viva 742"
-  }'
-```
-
-### Crear un traslado
-
-```bash
-curl -u admin:admin123 -X POST http://localhost:8082/api/v1/traslados \
-  -H "Content-Type: application/json" \
-  -d '{
-    "idPaciente": 1,
-    "idTrabajador": 4,
-    "direccionHogar": "Calle Las Flores 123, Providencia",
-    "horaRecogida": "2026-06-10T09:00:00",
-    "estado": "PENDIENTE"
-  }'
-```
-
-### Actualizar estado de un traslado
-
-```bash
-curl -u admin:admin123 -X PUT "http://localhost:8082/api/v1/traslados/1/estado/EN_PROGRESO"
-```
-
----
-
-## 📄 Logs
-
-Ambos microservicios generan logs a nivel DEBUG en consola y archivo (`logs/application.log`).
-
----
-
-## 🖥️ Requisitos del IDE
-
-Si usas VS Code, el archivo `.vscode/settings.json` ya incluye:
+### Campos del recurso `Personal`
 
 ```json
 {
-  "java.compile.nullAnalysis.mode": "automatic",
-  "java.configuration.updateBuildConfiguration": "interactive",
-  "java.debug.settings.onBuildFailureProceed": true
+  "idTrabajador": 1,
+  "rol": "Veterinario",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "rut": "12345678-9",
+  "correo": "juan@veterinaria.cl",
+  "telefono": "+56912345678",
+  "direccion": "Calle Principal 123, Santiago"
 }
 ```
 
-Asegúrate de tener instalada la **extensión de Lombok** en tu IDE.
+### Endpoints
+
+#### GET /api/v1/personal — Listar todo el personal
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/personal
+```
+- Por gateway: `http://localhost:8080/api/v1/personal`
+- Directo: `http://localhost:8081/api/v1/personal`
+- Respuesta: `200 OK` con `CollectionModel<EntityModel<PersonalDTO>>` (HATEOAS)
+
+#### GET /api/v1/personal/{id} — Obtener personal por ID
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/personal/1
+```
+- Respuesta: `200 OK` | `404 Not Found`
+
+#### POST /api/v1/personal — Crear personal
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/personal \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rol": "Veterinario",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "rut": "12345678-9",
+    "correo": "juan.perez@veterinaria.cl",
+    "telefono": "+56912345678",
+    "direccion": "Calle Principal 123, Santiago"
+  }'
+```
+- Respuesta: `201 Created` con Location header | `400 Bad Request`
+
+#### PUT /api/v1/personal/{id} — Actualizar personal
+```bash
+curl -u admin:admin123 -X PUT http://localhost:8080/api/v1/personal/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rol": "Veterinario Senior",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "rut": "12345678-9",
+    "correo": "juan.perez@veterinaria.cl",
+    "telefono": "+56987654321",
+    "direccion": "Avenida Principal 456, Santiago"
+  }'
+```
+- Respuesta: `200 OK` | `404 Not Found`
+
+#### DELETE /api/v1/personal/{id} — Eliminar personal
+```bash
+curl -u admin:admin123 -X DELETE http://localhost:8080/api/v1/personal/1
+```
+- Respuesta: `204 No Content` | `404 Not Found`
+
+#### POST /api/v1/personal/migrate — Ejecutar migraciones Flyway
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/personal/migrate
+```
+- Respuesta: `200 OK` — `"Migraciones ejecutadas: 1"`
+
+#### POST /api/v1/personal/seed/{count} — Generar datos falsos
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/personal/seed/10
+```
+- Respuesta: `200 OK` con `List<PersonalDTO>` de 10 registros generados con DataFaker
+
+#### GET /api/v1/personal/exists/id/{id} — Verificar si existe por ID
+```bash
+curl http://localhost:8080/api/v1/personal/exists/id/1
+```
+- **Público** (no requiere auth)
+- Respuesta: `{"exists": true, "_links": [...]}`
+
+#### GET /api/v1/personal/exists/rut/{rut} — Verificar si existe RUT
+```bash
+curl http://localhost:8080/api/v1/personal/exists/rut/12345678-9
+```
+- **Público** (no requiere auth)
+- Respuesta: `{"exists": true, "_links": [...]}`
+
+#### GET /api/v1/personal/exists/correo/{correo} — Verificar si existe correo
+```bash
+curl http://localhost:8080/api/v1/personal/exists/correo/juan@veterinaria.cl
+```
+- **Público** (no requiere auth)
+- Respuesta: `{"exists": true, "_links": [...]}`
+
+## API Reference - Delivery Mascotas (`/api/v1/traslados`)
+
+### Campos del recurso `Traslado`
+
+```json
+{
+  "idTraslado": 1,
+  "idPaciente": 100,
+  "idTrabajador": 1,
+  "direccionHogar": "Av. Siempre Viva 742, Santiago",
+  "horaRecogida": "10:30",
+  "estado": "PENDIENTE"
+}
+```
+
+### Endpoints
+
+#### GET /api/v1/traslados — Listar todos los traslados
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/traslados
+```
+- Por gateway: `http://localhost:8080/api/v1/traslados`
+- Directo: `http://localhost:8082/api/v1/traslados`
+- Respuesta: `200 OK` con `CollectionModel<EntityModel<Traslado>>` (HATEOAS)
+
+#### GET /api/v1/traslados/{id} — Obtener traslado por ID
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/traslados/1
+```
+- Respuesta: `200 OK` | `404 Not Found`
+
+#### POST /api/v1/traslados — Crear traslado
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/traslados \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idPaciente": 100,
+    "idTrabajador": 1,
+    "direccionHogar": "Av. Siempre Viva 742, Santiago",
+    "horaRecogida": "10:30",
+    "estado": "PENDIENTE"
+  }'
+```
+- Valida que `idTrabajador` exista en Personal Médico vía FeignClient
+- Respuesta: `201 Created` | `400 Bad Request` (trabajador no existe o datos inválidos)
+
+#### PUT /api/v1/traslados/{id}/estado/{nuevoEstado} — Actualizar estado
+```bash
+curl -u admin:admin123 -X PUT http://localhost:8080/api/v1/traslados/1/estado/COMPLETADO
+```
+- Respuesta: `200 OK` | `404 Not Found`
+
+#### DELETE /api/v1/traslados/{id} — Eliminar traslado
+```bash
+curl -u admin:admin123 -X DELETE http://localhost:8080/api/v1/traslados/1
+```
+- Respuesta: `204 No Content` | `404 Not Found`
+
+#### POST /api/v1/traslados/migrate — Ejecutar migraciones Flyway
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/traslados/migrate
+```
+- Respuesta: `200 OK`
+
+#### POST /api/v1/traslados/seed/{count} — Generar datos falsos
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/api/v1/traslados/seed/10
+```
+- Respuesta: `200 OK` con `List<Traslado>` de 10 registros
+
+#### GET /api/v1/traslados/estadisticas/estado/{estado} — Contar por estado
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/traslados/estadisticas/estado/PENDIENTE
+```
+- Respuesta: `{"count": 5, "_links": [...]}`
+
+#### GET /api/v1/traslados/estadisticas/trabajador/{id}/estado/{estado} — Contar por trabajador y estado
+```bash
+curl -u admin:admin123 http://localhost:8080/api/v1/traslados/estadisticas/trabajador/1/estado/PENDIENTE
+```
+- Respuesta: `{"count": 3, "_links": [...]}`
+
+## Datos Semilla
+
+Flyway inserta datos iniciales automáticamente al iniciar:
+
+### Personal Médico (4 registros):
+| ID | Rol | Nombre | RUT |
+|---|---|---|---|
+| 1 | Veterinario | Carlos | 11111111-1 |
+| 2 | Asistente | María | 22222222-2 |
+| 3 | Recepcionista | Pedro | 33333333-3 |
+| 4 | Conductor | Ana | 44444444-4 |
+
+### Traslados (5 registros):
+| ID | Paciente | Trabajador | Estado |
+|---|---|---|---|
+| 1 | 101 | 1 | PENDIENTE |
+| 2 | 102 | 2 | COMPLETADO |
+| 3 | 103 | 3 | EN_CAMINO |
+| 4 | 104 | 4 | PENDIENTE |
+| 5 | 105 | 1 | CANCELADO |
+
+## Variables de Entorno
+
+Archivo `.env` en la raíz:
+
+```env
+MYSQL_ROOT_PASSWORD=root
+MYSQL_PORT=3306
+```
+
+## Base de Datos
+
+MySQL corre en el puerto `3307` del host (mapeado al `3306` del contenedor).
+
+| Base de datos | Microservicio |
+|---|---|
+| `veterinaria_personal` | Personal Médico |
+| `veterinaria_delivery` | Delivery Mascotas |
+
+Conexión directa desde el host:
+```
+Host: localhost
+Puerto: 3307
+Usuario: root
+Password: root
+```
+
+## Tests
+
+```bash
+# Tests de cada módulo
+cd personal-medico && mvn test
+cd delivery-mascotas && mvn test
+```
+
+Los tests usan H2 en memoria (no requieren MySQL).
+
+## Stack Tecnológico
+
+- **Java 17** + **Spring Boot 3.3.0**
+- **Spring Cloud 2023.0.1** (Eureka, Gateway, OpenFeign)
+- **Spring Data JPA** + **Flyway** (migraciones)
+- **MySQL 8.0**
+- **Spring Security** (HTTP Basic con usuarios en memoria)
+- **Spring HATEOAS** (respuestas REST con hipervínculos)
+- **Springdoc OpenAPI** (Swagger UI)
+- **Lombok**
+- **DataFaker** (generación de datos de prueba)
+- **JUnit 5** + **H2** (tests de integración)
+- **Docker** / **Docker Compose**
