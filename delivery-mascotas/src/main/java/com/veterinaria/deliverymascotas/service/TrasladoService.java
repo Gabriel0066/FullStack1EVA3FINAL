@@ -33,7 +33,7 @@ public class TrasladoService {
     public Traslado save(Traslado traslado) {
         log.info("Guardando nuevo traslado - Ejecutando validación inter-servicio");
 
-        boolean existeTrabajador = personalClient.existsById(traslado.getIdTrabajador());
+        boolean existeTrabajador = personalClient.existsById(traslado.getIdTrabajador()).exists();
 
         if (!existeTrabajador) {
             log.error("Error: El idTrabajador {} no existe en el sistema de Personal Médico", traslado.getIdTrabajador());

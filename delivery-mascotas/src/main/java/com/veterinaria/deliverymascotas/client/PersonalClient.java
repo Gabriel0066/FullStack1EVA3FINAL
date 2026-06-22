@@ -9,5 +9,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface PersonalClient {
 
     @GetMapping("/exists/id/{id}")
-    boolean existsById(@PathVariable("id") Long id);
+    PersonalExistsResponse existsById(@PathVariable("id") Long id);
 }

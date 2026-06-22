@@ -2,6 +2,7 @@ package com.veterinaria.deliverymascotas.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veterinaria.deliverymascotas.client.PersonalClient;
+import com.veterinaria.deliverymascotas.client.PersonalExistsResponse;
 import com.veterinaria.deliverymascotas.model.Traslado;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +56,7 @@ class TrasladoControllerIntegrationTest {
     @Test
     @DisplayName("POST + GET + DELETE - ciclo de vida completo de un traslado")
     void fullLifecycle() throws Exception {
-        when(personalClient.existsById(anyLong())).thenReturn(true);
+        when(personalClient.existsById(anyLong())).thenReturn(new PersonalExistsResponse(true));
 
         var input = Traslado.builder()
                 .idPaciente(100L)
@@ -109,7 +110,7 @@ class TrasladoControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/v1/traslados/estadisticas/estado/{estado} - contar por estado")
     void countByEstado() throws Exception {
-        when(personalClient.existsById(anyLong())).thenReturn(true);
+        when(personalClient.existsById(anyLong())).thenReturn(new PersonalExistsResponse(true));
 
         Traslado t = Traslado.builder()
                 .idPaciente(1L).idTrabajador(1L)

@@ -1,6 +1,7 @@
 package com.veterinaria.deliverymascotas.service;
 
 import com.veterinaria.deliverymascotas.client.PersonalClient;
+import com.veterinaria.deliverymascotas.client.PersonalExistsResponse;
 import com.veterinaria.deliverymascotas.model.Traslado;
 import com.veterinaria.deliverymascotas.repository.TrasladoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,7 +132,7 @@ class TrasladoServiceTest {
                 .estado("PENDIENTE")
                 .build();
 
-        when(personalClient.existsById(1L)).thenReturn(true);
+        when(personalClient.existsById(1L)).thenReturn(new PersonalExistsResponse(true));
         when(trasladoRepository.save(any(Traslado.class))).thenReturn(savedTraslado);
 
         // Act
@@ -156,7 +157,7 @@ class TrasladoServiceTest {
                 .horaRecogida(LocalTime.of(9, 0))
                 .build();
 
-        when(personalClient.existsById(999L)).thenReturn(false);
+        when(personalClient.existsById(999L)).thenReturn(new PersonalExistsResponse(false));
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
@@ -188,7 +189,7 @@ class TrasladoServiceTest {
                 .estado("PENDIENTE")
                 .build();
 
-        when(personalClient.existsById(1L)).thenReturn(true);
+        when(personalClient.existsById(1L)).thenReturn(new PersonalExistsResponse(true));
         when(trasladoRepository.save(any(Traslado.class))).thenReturn(savedTraslado);
 
         // Act
